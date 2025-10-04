@@ -1,0 +1,11 @@
+1. command to rename namespace
+2. can we add description to a namespace
+3. resource sharing between namespace
+4. deployment strategy by sharing resources between namespaces
+5. access and resource limitation on namespaces 
+6. demo of namespace specific resource and global scoped eg: service and configmap
+7. checking the details of the pod,pods
+8. print the token for joining the worker nodes to cluster
+serive kubelet status
+9. check the logs of a container, pod 
+10. chck the status,peered connections of a pod, container and weave net.
