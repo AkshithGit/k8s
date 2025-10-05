@@ -1,0 +1,14 @@
+1. Create a config file for nginx - deloyment and service
+kubectl create <resource> <name> [options] --dry-run=client -o yaml > myresource.yaml
+
+2. Deploy Test pod to connect to nginx application
+kubectl run test --imagenginx
+
+3. Configure external service
+
+4. Configure Ingress
+
+Labels and selectors 
+Use cases of the labels
+
+Service Networking 
