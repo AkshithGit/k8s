@@ -1,0 +1,12 @@
+
+Issue 1:
+plugin type="flannel" failed (add): failed to load flannel 'subnet.env'
+
+That means your node’s CNI configuration is still pointing to Flannel, but you’ve now switched to Weave Net, so CoreDNS is still trying to use the old Flannel config.
+Let’s fix this cleanly and restart everything properly.
+
+
+Solution:
+1. remove the flannel config from the /etc/cni/net.d/.
+2. check if the weavenet config files are placed under /etc/cni/net.d/.
+3. Check if the core dns is running or reapply the weave net yaml
