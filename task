@@ -1,0 +1,134 @@
+1. You are asked to create a docker image and you are trying to deploy the image to a web app as a container. but while you are build ing the docker image you are downloading the dependencies from jfrog artifactory. As you need to download the dependencies you need to configure the auth and authorization to jfrog. So how can you build a image without revealing the secrets
+
+
+  You’re right to worry—ARG/ENV in a Dockerfile leak into image history. Use one of these safe patterns so creds never land in a layer:
+
+1) BuildKit secrets (best) — no creds in layers/logs
+
+Prereqs: Build with BuildKit (DOCKER_BUILDKIT=1), and Dockerfile syntax v1.4+.
+
+Dockerfile
+
+# syntax=docker/dockerfile:1.7
+FROM python:3.11-slim AS builder
+WORKDIR /app
+
+# Only copy lockfiles first for better layer caching
+COPY requirements.txt .
+
+# Use a temp secret file during this RUN only (not stored in a layer)
+RUN --mount=type=secret,id=pip_index_url \
+    PIP_INDEX_URL="$(cat /run/secrets/pip_index_url)" \
+    pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+# Copy prebuilt wheels (no secrets)
+COPY --from=builder /wheels /wheels
+COPY . .
+RUN pip install --no-index --find-links=/wheels -r requirements.txt
+
+CMD ["gunicorn","--bind","0.0.0.0:8000","app:app"]
+
+Build command
+
+# Example: pass secret via env var (from your CI secret store or Key Vault task)
+DOCKER_BUILDKIT=1 docker buildx build \
+  --secret id=pip_index_url,env=PIP_INDEX_URL \
+  -t myorg/myapp:latest .
+
+Why it’s safe
+	•	The token is exposed only to that RUN step via /run/secrets/....
+	•	It never appears in image layers or docker history.
+	•	Nothing is printed unless you echo it.
+
+⸻
+
+2) pip.conf as a secret (clean & readable)
+
+Put your authenticated repo in a temp pip.conf that exists only during the layer.
+
+pip.conf (example)
+
+[global]
+index-url = https://<user-or-_token_>:<access-token>@<your-jfrog-host>/api/pypi/<repo>/simple
+trusted-host = <your-jfrog-host>
+
+Dockerfile
+
+# syntax=docker/dockerfile:1.7
+FROM python:3.11-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+
+RUN --mount=type=secret,id=pip_conf,target=/etc/pip.conf \
+    pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /wheels /wheels
+COPY . .
+RUN pip install --no-index --find-links=/wheels -r requirements.txt
+CMD ["gunicorn","--bind","0.0.0.0:8000","app:app"]
+
+Build
+
+DOCKER_BUILDKIT=1 docker buildx build \
+  --secret id=pip_conf,src=./pip.conf \
+  -t myorg/myapp:latest .
+
+
+⸻
+
+3) Azure DevOps example (Key Vault → BuildKit secret)
+
+# Get secret from Key Vault (masked)
+- task: AzureKeyVault@2
+  inputs:
+    azureSubscription: '<svc-conn>'
+    KeyVaultName: '<kv-name>'
+    SecretsFilter: 'pip-index-url'   # the full URL with token
+    RunAsPreJob: false
+
+# Build with BuildKit; pass secret as env (never echo it!)
+- script: |
+    echo "Enabling BuildKit"
+    export DOCKER_BUILDKIT=1
+    docker buildx build \
+      --secret id=pip_index_url,env=pip-index-url \
+      -t myorg/myapp:$(Build.BuildId) .
+  displayName: "Docker build with BuildKit secret"
+  env:
+    pip-index-url: $(pip-index-url)
+
+
+⸻
+
+4) If you cannot use BuildKit
+
+You can still avoid baking secrets by prebuilding dependencies outside the image:
+	1.	In CI, run pip wheel -r requirements.txt -w wheelhouse/ using the secret (not logged).
+	2.	Copy wheelhouse/ into the image and pip install --no-index --find-links=wheelhouse -r requirements.txt.
+
+Downside: larger artifacts and less reproducible builds than BuildKit secrets.
+
+⸻
+
+5) Extra hardening tips (Python + JFrog)
+	•	Use JFrog Access Tokens (scoped to the PyPI repo, short TTL). Avoid passwords.
+	•	Never use ARG/ENV for tokens—they end up in image metadata/history.
+	•	Don’t print the URL/token. Avoid pip -v or echo $PIP_INDEX_URL.
+	•	.dockerignore any pip.conf, .pypirc, or credentials files.
+	•	Private git deps? Use --mount=type=ssh (BuildKit) instead of embedding SSH keys or tokens:
+
+# syntax=docker/dockerfile:1.7
+RUN --mount=type=ssh pip install -r requirements.txt
+
+Build with: docker buildx build --ssh default=$SSH_AUTH_SOCK ...
+
+⸻
+
+TL;DR
+	•	Turn on BuildKit and use RUN --mount=type=secret ... so creds never hit layers.
+	•	Prefer multi-stage: build wheels with secret, install wheels in final stage.
+	•	In Azure DevOps, fetch from Key Vault and pass as a BuildKit secret (no logging, no baking).
