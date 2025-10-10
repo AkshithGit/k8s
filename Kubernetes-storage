@@ -1,0 +1,16 @@
+https://medium.com/@icloud.nkm/implementing-rbac-in-kubernetes-a-real-world-example-9f4c90c78e78
+
+
+
+| #      | Controller Idea                  | What It Does                                                                               | Keywords for Resume                                                     |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| **1**  | **ConfigMap Reload Controller**  | Watches ConfigMap changes and restarts affected Pods automatically.                        | “Custom controller to auto-restart Deployments on ConfigMap updates.”   |
+| **2**  | **Pod Health Controller**        | Monitors Pods in `CrashLoopBackOff` and recreates or alerts on repeated failures.          | “Implemented proactive Pod recovery via custom controller.”             |
+| **3**  | **Namespace Policy Controller**  | Automatically adds default labels, limits, and RBAC roles when a new namespace is created. | “Automated namespace provisioning and governance.”                      |
+| **4**  | **Image Tag Validator**          | Blocks or auto-corrects Deployments that use the `:latest` tag.                            | “Enforced image versioning policies using admission controller logic.”  |
+| **5**  | **Resource Quota Enforcer**      | Checks all Deployments and ensures memory/CPU limits are defined.                          | “Maintained compliance with resource policies using custom controller.” |
+| **6**  | **Secret Sync Controller**       | Syncs updated Secrets across namespaces (e.g., DB creds, TLS certs).                       | “Developed Secret synchronization operator for multi-namespace apps.”   |
+| **7**  | **Node Taint Remediator**        | Detects tainted nodes and rebalances workloads or removes taints.                          | “Automated node recovery and scheduling optimization.”                  |
+| **8**  | **Cost Optimization Controller** | Scales down dev/staging deployments outside work hours.                                    | “Reduced non-prod costs with automated workload scaling controller.”    |
+| **9**  | **Backup Job Controller**        | Watches a CRD `BackupJob` and triggers PVC or S3 backups automatically.                    | “Created backup operator for on-demand and scheduled data protection.”  |
+| **10** | **Pod Annotation Auditor**       | Validates Pod annotations (e.g., logging/monitoring labels) before scheduling.             | “Built auditing controller to ensure observability and compliance.”     |
